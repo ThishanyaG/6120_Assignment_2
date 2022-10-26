@@ -31,9 +31,9 @@ View(extract_from_esummary(summary_elephant1, "title"))
 # Do a search for the chosen family at a given sequence length. determine the number of data points found in the initial search and use that to do another search that includes all the sequences available.
 
 # Extinct species:
-extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b")
+extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b AND 400:1000[SLEN]")
 
-extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b", retmax = extinct_elephants$count, use_history = T)
+extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b AND 400:1000[SLEN]", retmax = extinct_elephants$count, use_history = T)
 
 extinct_summary <- entrez_summary(db = "nucleotide", id = extinct_elephants$ids[1:300])
 View(extract_from_esummary(extinct_summary, "title"))
@@ -69,71 +69,61 @@ recs_extant <- entrez_fetch(db = "nucleotide", web_history = extant_elephants$we
 write(recs_extant, "extant_elephant_cytb.fasta")
 extant_cytb_stringSet <- readDNAStringSet("extant_elephant_cytb.fasta")
 
-df_16S <- data.frame(Title_16S = names(stringSet_16S), Sequence_16S = paste(stringSet_16S))
+df_extant <- data.frame(Title = names(extant_cytb_stringSet), Sequence = paste(extant_cytb_stringSet))
 
-
-df_16S$Species_Name <- word(df_16S$Title_16S, 2L, 3L)
-df_16S <- df_16S[, c("Title_16S", "Species_Name", "Sequence_16S")]
-View(df_16S)
+# Add another column to the data frame that contains the species name of the data point. 
+df_extant$Species_Name <- word(df_extant$Title, 2L, 3L)
+df_extant <- df_extant[, c("Title", "Species_Name", "Sequence")]
+View(df_extant)
 
 ################################################################################
 # Summarize the data
 
-summary(df_16S)
-summary(df_cytb)
+summary(df_extinct)
+summary(df_extant)
 
 # check to make sure there are no NAs in the sequence field for both data frames
-df_16S %>%
-  count(is.na(Sequence_16S))
-df_cytb %>%
-  count(is.na(CytB_Sequence))
+df_extinct %>%
+  count(is.na(Sequence))
+df_extant %>%
+  count(is.na(Sequence))
 
 # count the different instances of each species in both data frames
-df_16S %>%
+df_extinct %>%
   group_by(Species_Name) %>%
   count(Species_Name)
 
-df_cytb %>%
+df_extant %>%
   group_by(Species_Name) %>%
   count(Species_Name)
 
 # look at the summary for the length of sequences in each data frame
-summary(nchar(df_16S$Sequence_16S))
-summary(nchar(df_cytb$CytB_Sequence))
+summary(nchar(df_extinct$Sequence))
+summary(nchar(df_extant$Sequence))
 
 # create a histogram of the sequence lengths in each data frame
-hist(nchar(df_cytb$CytB_Sequence), xlab = "Sequence Length", ylab = "
-     Frequency", main = "Frequency Histogram of CytB Sequence Lengths")
+hist(nchar(df_extinct$Sequence), xlab = "Sequence Length", ylab = "
+     Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extinct Species")
 
-hist(nchar(df_16S$Sequence_16S), xlab = "Sequence Length", ylab = "
-     Frequency", main = "Frequency Histogram of 16S Sequence Lengths")
+hist(nchar(df_extant$Sequence), xlab = "Sequence Length", ylab = "
+     Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extant Species")
 
 # Looking at the length of all the sequences in each set
-df_16S %>%
-  count(nchar(Sequence_16S))
-df_16S_28 <- df_16S %>%
-  filter(nchar(Sequence_16S) == 28)
+df_extinct %>%
+  count(nchar(Sequence))
 
-write(recs_cytb, "elephant_cytb.fasta")
-cytb_stringSet <- readDNAStringSet("elephant_cytb.fasta")
-
-
-stringSet_16S
-
-write(df_16S_28, "elephant_16S_28.fasta")
-
-df_cytb %>%
-  count(nchar(CytB_Sequence))
+df_extant %>%
+  count(nchar(Sequence))
 
 ################################################################################
 # Alignment
 ?muscle
 
-cytb_alignment <- DNAStringSet(muscle::muscle(cytb_stringSet))
-alignment_16S <- DNAStringSet(muscle::muscle(stringSet_16S))
+extinct_alignment <- DNAStringSet(muscle::muscle(extinct_cytb_stringSet))
+extant_alignment <- DNAStringSet(muscle::muscle(extant_cytb_stringSet))
 
-BrowseSeqs(alignment_16S)
-BrowseSeqs(cytb_alignment)
+BrowseSeqs(extinct_alignment)
+BrowseSeqs(extant_alignment)
 
 ################################################################################
 
