@@ -28,7 +28,7 @@ elephantidae_cytb <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN]
 # Remove the initial searches
 rm(elephant_search, elephant_search1)
 
-
+#######################################################################################
 post_cytb <- entrez_post(db = "nucleotide", web_history = elephantidae_cytb$web_history)
 
 sum_cytb1 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[1:330])
