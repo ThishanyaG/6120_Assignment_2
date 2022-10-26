@@ -19,66 +19,58 @@ entrez_db_summary(db = 'nucleotide')
 entrez_db_searchable(db = "nucleotide")
 entrez_db_links("nucleotide")
 
-elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]")
-elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]", retmax = elephantidae$count, use_history = T)
+# 
+elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN] AND cytochrome b")
+elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]  AND cytochrome b", retmax = elephantidae$count, use_history = T)
 
 summary_elephant <- entrez_summary(db = "nucleotide", id = elephantidae$ids[1:300])
 View(extract_from_esummary(summary_elephant, "title"))
-
 summary_elephant1 <- entrez_summary(db = "nucleotide", id = elephantidae$ids[300:600])
 View(extract_from_esummary(summary_elephant1, "title"))
 
+# Do a search for the chosen family at a given sequence length. determine the number of data points found in the initial search and use that to do another search that includes all the sequences available.
 
-elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN] NOT PREDICTED[WORD]")
-elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]", retmax = elephantidae$count, use_history = T)
-elephantidae$count
+# Extinct species:
+extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b")
 
-summary_elephant <- entrez_summary(db = "nucleotide", id = elephantidae$ids[1:300])
-View(extract_from_esummary(summary_elephant, "title"))
+extinct_elephants <- entrez_search(db = "nucleotide", term = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b", retmax = extinct_elephants$count, use_history = T)
 
+extinct_summary <- entrez_summary(db = "nucleotide", id = extinct_elephants$ids[1:300])
+View(extract_from_esummary(extinct_summary, "title"))
 
-# Do a search for the chosen family at a given sequence length. determine the number of data points found in the initial search and use that to do another search that includes all the sequences available. This was done for the genes: 16S and cytochrome B.
+# Extant species:
+extant_elephants <- entrez_search(db = "nucleotide", term = "Loxodonta africana[ORGN] OR Loxodonta cyclotis OR (Elephas maximus[ORGN] NOT Elephas maximus asurus[ORGN]) AND cytochrome b AND 500:1000[SLEN]")
 
-elephant_search <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND 16S AND 10:400[SLEN] NOT Bacteria[ORGN]")
-elephantidae_16S<- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND 16S AND 10:400[SLEN] NOT Bacteria[ORGN]", retmax = elephant_search$count, use_history = T)
+extant_elephants <- entrez_search(db = "nucleotide", term = "Loxodonta africana[ORGN] OR Loxodonta cyclotis OR (Elephas maximus[ORGN] NOT Elephas maximus asurus[ORGN]) AND cytochrome b AND 500:1000[SLEN]", retmax = extant_elephants$count, use_history = T)
 
-elephant_search1 <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND cytochrome b AND 500:800[SLEN]")
-elephantidae_cytb <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND cytochrome b AND 500:800[SLEN]", retmax = elephant_search1$count, use_history = T)
+extant_summary <- entrez_summary(db = "nucleotide", id = extant_elephants$ids[1:300])
+View(extract_from_esummary(extant_summary, "title"))
 
-# Remove the initial searches
-rm(elephant_search, elephant_search1)
-
-#######################################################################################
-post_cytb <- entrez_post(db = "nucleotide", web_history = elephantidae_cytb$web_history)
-
-sum_cytb1 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[1:330])
-sum_cytb2 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[330:660])
-sum_cytb3 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[660:elephantidae_cytb$count])
-
-View(extract_from_esummary(sum_cytb1, "title"))
-View(extract_from_esummary(sum_cytb2, "title"))
-View(extract_from_esummary(sum_cytb3, "title"))
 
 ################################################################################
 #Fetch data: get the fasta files of the data and create data frames of the sequences
 
 # Fetch data and create string sets of the fasta files 
-recs_cytb <- entrez_fetch(db = "nucleotide", web_history = elephantidae_cytb$web_history, rettype = "fasta", retmax = elephantidae_cytb$count)
-write(recs_cytb, "elephant_cytb.fasta")
-cytb_stringSet <- readDNAStringSet("elephant_cytb.fasta")
-
-recs_16S <- entrez_fetch(db = "nucleotide", web_history = elephantidae_16S$web_history, rettype = "fasta", retmax = elephantidae_16S$count)
-write(recs_16S, "elephant_16S.fasta")
-stringSet_16S <- readDNAStringSet("elephant_16S.fasta")
+recs_extinct <- entrez_fetch(db = "nucleotide", web_history = extinct_elephants$web_history, rettype = "fasta", retmax = extinct_elephants$count)
+write(recs_extinct, "extinct_elephant_cytb.fasta")
+extinct_cytb_stringSet <- readDNAStringSet("extinct_elephant_cytb.fasta")
 
 # Make data frames of the string sets
-df_cytb <- data.frame(CytB_Title = names(cytb_stringSet), CytB_Sequence = paste(cytb_stringSet))
-df_16S <- data.frame(Title_16S = names(stringSet_16S), Sequence_16S = paste(stringSet_16S))
+df_extinct <- data.frame(Title = names(extinct_cytb_stringSet), Sequence = paste(extinct_cytb_stringSet))
 
 # Add another column to the data frame that contains the species name of the data point. 
-df_cytb$Species_Name <- word(df_cytb$CytB_Title, 2L, 3L)
-df_cytb <- df_cytb[, c("CytB_Title", "Species_Name", "CytB_Sequence")]
-View(df_cytb)
+df_extinct$Species_Name <- word(df_extinct$Title, 2L, 3L)
+df_extinct <- df_extinct[, c("Title", "Species_Name", "Sequence")]
+View(df_extinct)
+
+
+# And repeat for extant species
+recs_extant <- entrez_fetch(db = "nucleotide", web_history = extant_elephants$web_history, rettype = "fasta", retmax = extant_elephants$count)
+write(recs_extant, "extant_elephant_cytb.fasta")
+extant_cytb_stringSet <- readDNAStringSet("extant_elephant_cytb.fasta")
+
+df_16S <- data.frame(Title_16S = names(stringSet_16S), Sequence_16S = paste(stringSet_16S))
+
 
 df_16S$Species_Name <- word(df_16S$Title_16S, 2L, 3L)
 df_16S <- df_16S[, c("Title_16S", "Species_Name", "Sequence_16S")]
@@ -146,6 +138,26 @@ BrowseSeqs(cytb_alignment)
 ################################################################################
 
 #############################################################################################
+elephant_search <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND 16S AND 10:400[SLEN] NOT Bacteria[ORGN]")
+elephantidae_16S<- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND 16S AND 10:400[SLEN] NOT Bacteria[ORGN]", retmax = elephant_search$count, use_history = T)
+
+elephant_search1 <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND cytochrome b")
+elephantidae_cytb <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND cytochrome b AND 500:800[SLEN]", retmax = elephant_search1$count, use_history = T)
+
+# Remove the initial searches
+rm(elephant_search, elephant_search1)
+
+
+post_cytb <- entrez_post(db = "nucleotide", web_history = elephantidae_cytb$web_history)
+
+sum_cytb1 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[1:330])
+sum_cytb2 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[330:660])
+sum_cytb3 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[660:elephantidae_cytb$count])
+
+View(extract_from_esummary(sum_cytb1, "title"))
+View(extract_from_esummary(sum_cytb2, "title"))
+View(extract_from_esummary(sum_cytb3, "title"))
+
 
 set_list_16S <- c()
 set_list_cytb <- c()
