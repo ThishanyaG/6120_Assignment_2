@@ -8,6 +8,7 @@ library(BiocGenerics)
 library(Biostrings)
 library(tidyverse)
 library(muscle)
+library(DECIPHER)
 
 
 ################################################################################
@@ -19,7 +20,7 @@ entrez_db_summary(db = 'nucleotide')
 entrez_db_searchable(db = "nucleotide")
 entrez_db_links("nucleotide")
 
-# 
+# Do a general search and summary of elephantidae cytochrome B data available. 
 elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN] AND cytochrome b")
 elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]  AND cytochrome b", retmax = elephantidae$count, use_history = T)
 
