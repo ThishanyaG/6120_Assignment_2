@@ -1,12 +1,14 @@
 ## 6210 Assignment 2
 
+# The Differentiation of CytB sequences between Extinct and Extant Elephantidae species
+
 # Load libraries 
 library(rentrez)
 library(BiocGenerics)
 library(Biostrings)
 library(tidyverse)
 library(muscle)
-?entrez_search
+
 
 ################################################################################
 # Data acquisition: get gene data using entrez search
@@ -17,12 +19,23 @@ entrez_db_summary(db = 'nucleotide')
 entrez_db_searchable(db = "nucleotide")
 entrez_db_links("nucleotide")
 
-
 elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]")
 elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]", retmax = elephantidae$count, use_history = T)
 
 summary_elephant <- entrez_summary(db = "nucleotide", id = elephantidae$ids[1:300])
 View(extract_from_esummary(summary_elephant, "title"))
+
+summary_elephant1 <- entrez_summary(db = "nucleotide", id = elephantidae$ids[300:600])
+View(extract_from_esummary(summary_elephant1, "title"))
+
+
+elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN] NOT PREDICTED[WORD]")
+elephantidae <- entrez_search(db="nucleotide", term = "Elephantidae[ORGN]", retmax = elephantidae$count, use_history = T)
+elephantidae$count
+
+summary_elephant <- entrez_summary(db = "nucleotide", id = elephantidae$ids[1:300])
+View(extract_from_esummary(summary_elephant, "title"))
+
 
 # Do a search for the chosen family at a given sequence length. determine the number of data points found in the initial search and use that to do another search that includes all the sequences available. This was done for the genes: 16S and cytochrome B.
 
