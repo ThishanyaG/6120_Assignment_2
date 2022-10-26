@@ -10,6 +10,9 @@ library(tidyverse)
 library(muscle)
 library(DECIPHER)
 
+#library(stringi)
+#library(ape)
+#library(RSQLite)
 
 ################################################################################
 # Data acquisition: get gene data using entrez search
@@ -129,7 +132,58 @@ extant_alignment <- DNAStringSet(muscle::muscle(extant_cytb_stringSet))
 BrowseSeqs(extinct_alignment)
 BrowseSeqs(extant_alignment)
 
+orient_extinct <- OrientNucleotides(extinct_cytb_stringSet)
+extinct_alignment1 <- DNAStringSet(muscle::muscle(orient_extinct, maxiters = 2))
+BrowseSeqs(extinct_alignment1)
 ################################################################################
+df_extant$Sequence
 
+merged <- merge(df_extant, df_extinct, all = T)
+df_merged <- merged %>%
+  mutate(Sequence_remove = str_remove_all(Sequence, "^N+|N+$|-")) %>%
+  filter(str_count(Sequence_remove, "N") <= (0.01 * str_count(Sequence))) %>%
+  filter(str_count(Sequence_remove) >= median(str_count(Sequence_remove)) - 75 & str_count(Sequence_remove) <= median(str_count(Sequence_remove)) + 75)
 
+df_merged <- as.data.frame(df_merged)
+df_merged$Sequence <- DNAStringSet(df_merged$Sequence)
+df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
 
+merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
+BrowseSeqs(merged_alignment)
+
+################################################################################
+# Distance Matrix: calculate multiple distance matrices using different models
+bin <- as.DNAbin(merged_alignment)
+
+distanceMatrix_JC <- dist.dna(bin, model = "JC69", as.matrix = TRUE, pairwise.deletion = TRUE)
+distanceMatrix_JC = as.dist(distanceMatrix_JC)
+
+distanceMatrix_Kim2P <- dist.dna(bin, model = "K80", as.matrix = TRUE, pairwise.deletion = TRUE)
+distanceMatrix_Kim2P = as.dist(distanceMatrix_Kim2P)
+
+distanceMatrix_Tamura <- dist.dna(bin, model = "T92", as.matrix = TRUE, pairwise.deletion = TRUE)
+distanceMatrix_Tamura = as.dist(distanceMatrix_Tamura)
+
+# Clustering
+?hclust
+
+#Jukes and Canter
+jc_cluster_single <- hclust(distanceMatrix_JC,method="single")
+jc_cluster_complete <- hclust(distanceMatrix_JC,method="complete")
+
+plot(jc_cluster_single)
+plot(jc_cluster_complete)
+
+# Kimura's 2-parameter distance
+Kim_cluster_single <- hclust(distanceMatrix_Kim2P,method="single")
+Kim_cluster_complete <- hclust(distanceMatrix_Kim2P,method="complete")
+
+plot(Kim_cluster_single)
+plot(Kim_cluster_complete)
+
+# Tamura
+Tam_cluster_single <- hclust(distanceMatrix_Tamura,method="single")
+Tam_cluster_complete <- hclust(distanceMatrix_Tamura,method="complete")
+
+plot(jc_cluster_single)
+plot(jc_cluster_complete)
