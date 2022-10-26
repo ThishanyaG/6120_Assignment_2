@@ -15,6 +15,7 @@ library(muscle)
 entrez_dbs()
 entrez_db_summary(db = 'nucleotide')
 entrez_db_searchable(db = "nucleotide")
+entrez_db_links("nucleotide")
 
 # Do a search for the chosen family at a given sequence length. determine the number of data points found in the initial search and use that to do another search that includes all the sequences available. This was done for the genes: 16S and cytochrome B.
 
@@ -26,6 +27,17 @@ elephantidae_cytb <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN]
 
 # Remove the initial searches
 rm(elephant_search, elephant_search1)
+
+
+post_cytb <- entrez_post(db = "nucleotide", web_history = elephantidae_cytb$web_history)
+
+sum_cytb1 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[1:330])
+sum_cytb2 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[330:660])
+sum_cytb3 <- entrez_summary(db = "nucleotide", elephantidae_cytb$ids[660:elephantidae_cytb$count])
+
+View(extract_from_esummary(sum_cytb1, "title"))
+View(extract_from_esummary(sum_cytb2, "title"))
+View(extract_from_esummary(sum_cytb3, "title"))
 
 ################################################################################
 #Fetch data: get the fasta files of the data and create data frames of the sequences
@@ -246,7 +258,14 @@ extract_from_esummary(African_sum, "title")
 
 
 #############################################################################################
-#d_loop_search <- entrez_search(db = "nucleotide", term = "Elephas maximus[ORGN] AND mitochondrial D-loop")
+d_loop_search <- entrez_search(db = "nuccore", term = "Elephas maximus[ORGN] AND mitochondrial D-loop", retmax = d_loop_search$count, use_history = T)
+
+post <- entrez_post(db = "nuccore", web_history = d_loop_search$web_history)
+entrez_db_links("nuccore")
+
+sum <- entrez_summary(db = "nucleotide", web_history = post)
+View(extract_from_esummary(sum, "title"))
+
 #d_loop_search
 #dloop_fetch <- entrez_fetch(db = "nucleotide", id = d_loop_search$ids, rettype = "fasta")
 #write(dloop_fetch, "dloop_fetch.fasta", sep = "\n")
