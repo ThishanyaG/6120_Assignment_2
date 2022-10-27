@@ -15,6 +15,10 @@ library(randomForest)
 #library(stringi)
 #library(RSQLite)
 
+elephant_search1 <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND ND4[GENE] AND 3000:4000[SLEN]")
+
+
+
 ################################################################################
 # Data acquisition: get gene data using entrez search
 
@@ -187,8 +191,6 @@ table(observed = df_Validation$status, predicted = predict_Validation)
 
 
 ################################################################################
-
-
 df_extinct$status <- "Extinct"
 df_extant$status <- "Extant"
 
@@ -199,15 +201,19 @@ df_merged <- merged %>%
   filter(str_count(Sequence_remove) >= median(str_count(Sequence_remove)) - 75 & str_count(Sequence_remove) <= median(str_count(Sequence_remove)) + 75)
 
 
-
 df_merged <- as.data.frame(df_merged)
 df_merged$Sequence <- DNAStringSet(df_merged$Sequence)
 df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
 names(df_merged$Sequence_remove) <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
+df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 
+?word
 merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
 BrowseSeqs(merged_alignment)
 
+df_merged <- as.data.frame(df_merged)
+df_merged$Sequence <- as.data.frame(df_merged$Sequence)
+class(df_merged$Title)
 
 ################################################################################
 # Distance Matrix: calculate multiple distance matrices using different models
@@ -222,6 +228,14 @@ distanceMatrix_Kim2P = as.dist(distanceMatrix_Kim2P)
 distanceMatrix_Tamura <- dist.dna(bin, model = "T92", as.matrix = TRUE, pairwise.deletion = TRUE)
 distanceMatrix_Tamura = as.dist(distanceMatrix_Tamura)
 
+
+distanceMatrix_pariwise <- dist.dna(x = bin, model = "raw", as.matrix = T, pairwise.deletion = T)
+View(distanceMatrix_pariwise)
+distance_Matrix_pariwise <- as.dist(distanceMatrix_pariwise)
+
+pairwise_cluster <- hclust(distance_Matrix_pariwise, method = "single")
+
+plot(pairwise_cluster)
 # Clustering
 
 #Jukes and Canter
@@ -241,15 +255,58 @@ plot(Kim_cluster_complete)
 View(Kim_cluster_single$merge)
 View(Kim_cluster_complete$merge)
 
-
-
-?plot
+?sample
 plot(as.phylo(jc_cluster_single), tip.color = c("red", "green", "blue")[cutree(jc_cluster_single, 3)])
 plot(jc_cluster_complete)
 
+################################################################################
+
+df_merged_noPredict <- df_merged %>%
+  filter(!Species_Name == "PREDICTED: Elephas", !Species_Name == "PREDICTED: Loxodonta", !marker== "Extinct FJ753551.1")
+
+df_merged_noPredict <- as.data.frame(df_merged_noPredict)
+df_merged_noPredict$Sequence <- DNAStringSet(df_merged_noPredict$Sequence)
+df_merged_noPredict$Sequence_remove <- DNAStringSet(df_merged_noPredict$Sequence_remove)
+names(df_merged_noPredict$Sequence_remove) <- paste(df_merged_noPredict$status, word(df_merged_noPredict$Title, 1L), sep = " ")
+
+noPredict_alignment <- DNAStringSet(muscle::muscle(df_merged_noPredict$Sequence_remove))
+
+bin_noPredict <- as.DNAbin(noPredict_alignment)
+
+noPredict_distanceMatrix_pairwise <- dist.dna(x = bin_noPredict, model = "raw", as.matrix = T, pairwise.deletion = T)
+View(noPredict_distanceMatrix_pairwise)
 
 
+noPredict_distance_Matrix_pariwise <- as.dist(noPredict_distanceMatrix_pairwise)
 
+noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pariwise, method = "single")
+
+
+plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue")[cutree(noPredict_pairwise_cluster, 2)])
+
+cut <- cutree(noPredict_pairwise_cluster, 2)
+View(cut)
+
+df_cut <- as.data.frame(cut)
+df_cut %>%
+  count(cut)
+
+df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
+
+plot(hcd, edgePar = list(col = 2:3, lwd = 2:1))
+?plot
+
+plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue")["Extant" %in% noPredict_pairwise_cluster$labels])
+
+hcd <- as.dendrogram(noPredict_pairwise_cluster)
+View(noPredict_pairwise_cluster)
+
+################################################################################
+
+cl <- stats::kmeans(distanceMatrix_JC, 2)
+
+set.seed(96)
+plot(distanceMatrix_JC, col = cl$cluster)
 
 
 
