@@ -10,6 +10,7 @@ library(tidyverse)
 library(muscle)
 library(DECIPHER)
 library(ape)
+library(randomForest)
 
 #library(stringi)
 #library(RSQLite)
@@ -135,13 +136,61 @@ BrowseSeqs(extant_alignment)
 orient_extinct <- OrientNucleotides(extinct_cytb_stringSet)
 extinct_alignment1 <- DNAStringSet(muscle::muscle(orient_extinct, maxiters = 2))
 BrowseSeqs(extinct_alignment1)
+
 ################################################################################
-df_extant$Sequence
+df_extinct$status <- "Extinct"
+df_extant$status <- "Extant"
+
+df_extinct1 <- df_extinct %>%
+  mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
+  mutate(Sequence0 = str_remove(Sequence, "[-N]+$")) %>%
+  mutate(Sequence0 = str_remove(Sequence, "-+")) %>%
+  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence))) %>%
+
+df_extant1 <- df_extant %>%
+  mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
+  mutate(Sequence0 = str_remove(Sequence, "[-N]+$")) %>%
+  mutate(Sequence0 = str_remove(Sequence, "-+")) %>%
+  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence)))
+
+df_merge1 <- merge.data.frame(df_extant1, df_extinct1, all = T)
+df_merge1$Sequence0 <- DNAStringSet(df_merge1$Sequence0)
+
+df_merge1 <- cbind(df_merge1, as.data.frame(letterFrequency(df_merge1$Sequence0, letters = c("A", "C","G", "T"))))
+
+df_merge1$Aprop <- (df_merge1$A) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
+df_merge1$Tprop <- (df_merge1$T) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
+df_merge1$Gprop <- (df_merge1$G) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
+
+df_merge1$Sequence0 <- as.character(df_merge1$Sequence0)
+
+set.seed(16)
+
+df_Validation <- df_merge1 %>%
+  group_by(status) %>%
+  sample_n(20)
+
+set.seed(85)
+df_Training <- df_merge1 %>%
+  filter(!Title %in% df_Validation$Title) %>%
+  group_by(status) %>%
+  sample_n(60)
+
+
+classifier <- randomForest::randomForest(x = df_Training[, 10:12], y = as.factor(df_Training$status), ntree = 50, importance = TRUE)
+classifier
+
+predict_Validation <- predict(classifier, df_Validation[, c(4, 10:12)])
+predict_Validation
+
+table(observed = df_Validation$status, predicted = predict_Validation)
+
+
+################################################################################
+
 
 df_extinct$status <- "Extinct"
-  
 df_extant$status <- "Extant"
-  
 
 merged <- merge(df_extant, df_extinct, all = T)
 df_merged <- merged %>%
