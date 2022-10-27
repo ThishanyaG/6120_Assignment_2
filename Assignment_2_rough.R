@@ -9,9 +9,9 @@ library(Biostrings)
 library(tidyverse)
 library(muscle)
 library(DECIPHER)
+library(ape)
 
 #library(stringi)
-#library(ape)
 #library(RSQLite)
 
 ################################################################################
@@ -138,18 +138,27 @@ BrowseSeqs(extinct_alignment1)
 ################################################################################
 df_extant$Sequence
 
+df_extinct$status <- "Extinct"
+  
+df_extant$status <- "Extant"
+  
+
 merged <- merge(df_extant, df_extinct, all = T)
 df_merged <- merged %>%
   mutate(Sequence_remove = str_remove_all(Sequence, "^N+|N+$|-")) %>%
   filter(str_count(Sequence_remove, "N") <= (0.01 * str_count(Sequence))) %>%
   filter(str_count(Sequence_remove) >= median(str_count(Sequence_remove)) - 75 & str_count(Sequence_remove) <= median(str_count(Sequence_remove)) + 75)
 
+
+
 df_merged <- as.data.frame(df_merged)
 df_merged$Sequence <- DNAStringSet(df_merged$Sequence)
 df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
+names(df_merged$Sequence_remove) <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 
 merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
 BrowseSeqs(merged_alignment)
+
 
 ################################################################################
 # Distance Matrix: calculate multiple distance matrices using different models
@@ -165,7 +174,6 @@ distanceMatrix_Tamura <- dist.dna(bin, model = "T92", as.matrix = TRUE, pairwise
 distanceMatrix_Tamura = as.dist(distanceMatrix_Tamura)
 
 # Clustering
-?hclust
 
 #Jukes and Canter
 jc_cluster_single <- hclust(distanceMatrix_JC,method="single")
@@ -181,9 +189,23 @@ Kim_cluster_complete <- hclust(distanceMatrix_Kim2P,method="complete")
 plot(Kim_cluster_single)
 plot(Kim_cluster_complete)
 
-# Tamura
-Tam_cluster_single <- hclust(distanceMatrix_Tamura,method="single")
-Tam_cluster_complete <- hclust(distanceMatrix_Tamura,method="complete")
+View(Kim_cluster_single$merge)
+View(Kim_cluster_complete$merge)
 
-plot(jc_cluster_single)
+
+
+?plot
+plot(as.phylo(jc_cluster_single), tip.color = c("red", "green", "blue")[cutree(jc_cluster_single, 3)])
 plot(jc_cluster_complete)
+
+
+
+
+
+
+
+
+
+
+
+
