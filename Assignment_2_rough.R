@@ -164,6 +164,8 @@ df_merge1$Gprop <- (df_merge1$G) / (df_merge1$A + df_merge1$T + df_merge1$C + df
 
 df_merge1$Sequence0 <- as.character(df_merge1$Sequence0)
 
+################################################################################
+
 set.seed(16)
 df_Validation <- df_merge1 %>%
   group_by(status) %>%
@@ -176,13 +178,13 @@ df_Training <- df_merge1 %>%
   sample_n(60)
 
 classifier <- randomForest::randomForest(x = df_Training[, 10:12], y = as.factor(df_Training$status), ntree = 50, importance = TRUE)
+
 classifier
 
 predict_Validation <- predict(classifier, df_Validation[, c(4, 10:12)])
 predict_Validation
 
 table(observed = df_Validation$status, predicted = predict_Validation)
-
 
 ################################################################################
 df_extinct$status <- "Extinct"
@@ -201,55 +203,42 @@ df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
 names(df_merged$Sequence_remove) <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 
-?word
+
+
+
+
 merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
 BrowseSeqs(merged_alignment)
-
-df_merged <- as.data.frame(df_merged)
-df_merged$Sequence <- as.data.frame(df_merged$Sequence)
-class(df_merged$Title)
 
 ################################################################################
 # Distance Matrix: calculate multiple distance matrices using different models
 bin <- as.DNAbin(merged_alignment)
 
+#Jukes and Canter
 distanceMatrix_JC <- dist.dna(bin, model = "JC69", as.matrix = TRUE, pairwise.deletion = TRUE)
 distanceMatrix_JC = as.dist(distanceMatrix_JC)
+jc_cluster_single <- hclust(distanceMatrix_JC,method="single")
+jc_cluster_complete <- hclust(distanceMatrix_JC,method="complete")
 
+# Kimura's 2-parameter distance
 distanceMatrix_Kim2P <- dist.dna(bin, model = "K80", as.matrix = TRUE, pairwise.deletion = TRUE)
 distanceMatrix_Kim2P = as.dist(distanceMatrix_Kim2P)
+Kim_cluster_single <- hclust(distanceMatrix_Kim2P,method="single")
+Kim_cluster_complete <- hclust(distanceMatrix_Kim2P,method="complete")
 
 distanceMatrix_Tamura <- dist.dna(bin, model = "T92", as.matrix = TRUE, pairwise.deletion = TRUE)
 distanceMatrix_Tamura = as.dist(distanceMatrix_Tamura)
 
-
 distanceMatrix_pariwise <- dist.dna(x = bin, model = "raw", as.matrix = T, pairwise.deletion = T)
-View(distanceMatrix_pariwise)
 distance_Matrix_pariwise <- as.dist(distanceMatrix_pariwise)
-
 pairwise_cluster <- hclust(distance_Matrix_pariwise, method = "single")
+
+
 
 plot(pairwise_cluster)
 # Clustering
 
-#Jukes and Canter
-jc_cluster_single <- hclust(distanceMatrix_JC,method="single")
-jc_cluster_complete <- hclust(distanceMatrix_JC,method="complete")
 
-plot(jc_cluster_single)
-plot(jc_cluster_complete)
-
-# Kimura's 2-parameter distance
-Kim_cluster_single <- hclust(distanceMatrix_Kim2P,method="single")
-Kim_cluster_complete <- hclust(distanceMatrix_Kim2P,method="complete")
-
-plot(Kim_cluster_single)
-plot(Kim_cluster_complete)
-
-View(Kim_cluster_single$merge)
-View(Kim_cluster_complete$merge)
-
-?sample
 plot(as.phylo(jc_cluster_single), tip.color = c("red", "green", "blue")[cutree(jc_cluster_single, 3)])
 plot(jc_cluster_complete)
 
@@ -311,10 +300,6 @@ df_cut %>%
   group_by(cut) %>%
   count(status)
 
-
-
-
-View(noPredict_pairwise_cluster)
 
 ################################################################################
 
