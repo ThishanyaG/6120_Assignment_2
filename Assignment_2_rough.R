@@ -137,10 +137,6 @@ extant_alignment <- DNAStringSet(muscle::muscle(extant_cytb_stringSet))
 BrowseSeqs(extinct_alignment)
 BrowseSeqs(extant_alignment)
 
-orient_extinct <- OrientNucleotides(extinct_cytb_stringSet)
-extinct_alignment1 <- DNAStringSet(muscle::muscle(orient_extinct, maxiters = 2))
-BrowseSeqs(extinct_alignment1)
-
 ################################################################################
 df_extinct$status <- "Extinct"
 df_extant$status <- "Extant"
@@ -149,7 +145,7 @@ df_extinct1 <- df_extinct %>%
   mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
   mutate(Sequence0 = str_remove(Sequence, "[-N]+$")) %>%
   mutate(Sequence0 = str_remove(Sequence, "-+")) %>%
-  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence))) %>%
+  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence)))
 
 df_extant1 <- df_extant %>%
   mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
@@ -169,7 +165,6 @@ df_merge1$Gprop <- (df_merge1$G) / (df_merge1$A + df_merge1$T + df_merge1$C + df
 df_merge1$Sequence0 <- as.character(df_merge1$Sequence0)
 
 set.seed(16)
-
 df_Validation <- df_merge1 %>%
   group_by(status) %>%
   sample_n(20)
@@ -179,7 +174,6 @@ df_Training <- df_merge1 %>%
   filter(!Title %in% df_Validation$Title) %>%
   group_by(status) %>%
   sample_n(60)
-
 
 classifier <- randomForest::randomForest(x = df_Training[, 10:12], y = as.factor(df_Training$status), ntree = 50, importance = TRUE)
 classifier
@@ -260,6 +254,7 @@ plot(as.phylo(jc_cluster_single), tip.color = c("red", "green", "blue")[cutree(j
 plot(jc_cluster_complete)
 
 ################################################################################
+df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 
 df_merged_noPredict <- df_merged %>%
   filter(!Species_Name == "PREDICTED: Elephas", !Species_Name == "PREDICTED: Loxodonta", !marker== "Extinct FJ753551.1")
@@ -284,21 +279,41 @@ noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pariwise, method 
 
 plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue")[cutree(noPredict_pairwise_cluster, 2)])
 
+plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)])
+
+
 cut <- cutree(noPredict_pairwise_cluster, 2)
 View(cut)
 
+cut
+
 df_cut <- as.data.frame(cut)
 df_cut %>%
-  count(cut)
+  count(cut) 
+cluster1 <- df_cut %>%
+  filter(cut == 1)
+cluster2 <- df_cut %>%
+  filter(cut == 2)
 
-df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
+df_cut$status <- word(row.names(df_cut), 1L, sep = " ")
 
-plot(hcd, edgePar = list(col = 2:3, lwd = 2:1))
-?plot
+df_cut %>% 
+  group_by(cut) %>%
+  count(status)
 
-plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue")["Extant" %in% noPredict_pairwise_cluster$labels])
+cut3 <- cutree(noPredict_pairwise_cluster, 3)
 
-hcd <- as.dendrogram(noPredict_pairwise_cluster)
+df_cut3 <- as.data.frame(cut3)
+
+df_cut3$status <- word(row.names(df_cut3), 1L, sep = " ")
+
+df_cut %>% 
+  group_by(cut) %>%
+  count(status)
+
+
+
+
 View(noPredict_pairwise_cluster)
 
 ################################################################################
