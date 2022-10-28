@@ -76,7 +76,6 @@ df_extinct$Species_Name <- word(df_extinct$Title, 2L, 3L)
 df_extinct <- df_extinct[, c("Title", "Species_Name", "Sequence")]
 View(df_extinct)
 
-
 # And repeat for extant species
 recs_extant <- entrez_fetch(db = "nucleotide", web_history = extant_elephants$web_history, rettype = "fasta", retmax = extant_elephants$count)
 write(recs_extant, "extant_elephant_cytb.fasta")
@@ -89,6 +88,8 @@ df_extant$Species_Name <- word(df_extant$Title, 2L, 3L)
 df_extant <- df_extant[, c("Title", "Species_Name", "Sequence")]
 View(df_extant)
 
+rm(recs_extant, recs_extinct)
+rm(extant_cytb_stringSet, extinct_cytb_stringSet)
 ################################################################################
 # Summarize the data
 summary(df_extinct)
@@ -190,21 +191,19 @@ table(observed = df_Validation$status, predicted = predict_Validation)
 df_extinct$status <- "Extinct"
 df_extant$status <- "Extant"
 
+class(merged$Sequence)
+
 merged <- merge(df_extant, df_extinct, all = T)
 df_merged <- merged %>%
   mutate(Sequence_remove = str_remove_all(Sequence, "^N+|N+$|-")) %>%
   filter(str_count(Sequence_remove, "N") <= (0.01 * str_count(Sequence))) %>%
   filter(str_count(Sequence_remove) >= median(str_count(Sequence_remove)) - 75 & str_count(Sequence_remove) <= median(str_count(Sequence_remove)) + 75)
 
-
 df_merged <- as.data.frame(df_merged)
 df_merged$Sequence <- DNAStringSet(df_merged$Sequence)
 df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
 names(df_merged$Sequence_remove) <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
-
-
-
 
 
 merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
@@ -244,11 +243,19 @@ plot(jc_cluster_complete)
 
 ################################################################################
 df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
+df_merged$Sequence <- as.character(df_merged$Sequence)
+df_merged$Sequence_remove <- as.character(df_merged$Sequence_remove)
 
+df_merged_noPredict <- merge(df_extant, df_extinct, all = T)
+df_merged_noPredict$marker <- paste(df_merged_noPredict$status, word(df_merged$Title, 1L), sep = " ")
 df_merged_noPredict <- df_merged %>%
   filter(!Species_Name == "PREDICTED: Elephas", !Species_Name == "PREDICTED: Loxodonta", !marker== "Extinct FJ753551.1")
 
+
 df_merged_noPredict <- as.data.frame(df_merged_noPredict)
+df_merged_noPredict$Sequence <- BStringSet(df_merged_noPredict$Sequence)
+df_merged_noPredict$Sequence_remove <- BStringSet(df_merged_noPredict$Sequence_remove)
+
 df_merged_noPredict$Sequence <- DNAStringSet(df_merged_noPredict$Sequence)
 df_merged_noPredict$Sequence_remove <- DNAStringSet(df_merged_noPredict$Sequence_remove)
 names(df_merged_noPredict$Sequence_remove) <- paste(df_merged_noPredict$status, word(df_merged_noPredict$Title, 1L), sep = " ")
@@ -258,11 +265,7 @@ noPredict_alignment <- DNAStringSet(muscle::muscle(df_merged_noPredict$Sequence_
 bin_noPredict <- as.DNAbin(noPredict_alignment)
 
 noPredict_distanceMatrix_pairwise <- dist.dna(x = bin_noPredict, model = "raw", as.matrix = T, pairwise.deletion = T)
-View(noPredict_distanceMatrix_pairwise)
-
-
 noPredict_distance_Matrix_pariwise <- as.dist(noPredict_distanceMatrix_pairwise)
-
 noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pariwise, method = "single")
 
 
@@ -274,15 +277,9 @@ plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")
 cut <- cutree(noPredict_pairwise_cluster, 2)
 View(cut)
 
-cut
-
 df_cut <- as.data.frame(cut)
 df_cut %>%
   count(cut) 
-cluster1 <- df_cut %>%
-  filter(cut == 1)
-cluster2 <- df_cut %>%
-  filter(cut == 2)
 
 df_cut$status <- word(row.names(df_cut), 1L, sep = " ")
 
@@ -303,11 +300,16 @@ df_cut %>%
 
 ################################################################################
 
-cl <- stats::kmeans(distanceMatrix_JC, 2)
+cl <- stats::kmeans(noPredict_distance_Matrix_pariwise, 2)
+cl3 <- stats::kmeans(noPredict_distance_Matrix_pariwise, 3)
 
 set.seed(96)
-plot(distanceMatrix_JC, col = cl$cluster)
 
+plot(noPredict_distance_Matrix_pariwise, col = cl$cluster)
+plot(noPredict_distance_Matrix_pariwise, col = cl3$cluster)
+
+plot(noPredict_distance_Matrix_pariwise)
+plot(noPredict_distance_Matrix_pariwise)
 
 
 

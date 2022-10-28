@@ -13,7 +13,7 @@ library(ape)
 library(randomForest)
 
 
-DataAcquisition <- function(db="nucleotide", search_terms, summary_term) {
+DataAcquisition <- function(search_terms, db="nucleotide", summary_term = "title") {
   search_results <- entrez_search(db=db, term = search_terms)
   search_results <- entrez_search(db=db, term = search_terms, retmax = search_results$count, use_history = T)
 
@@ -102,3 +102,15 @@ DistanceMatrix1 <- function(alignment, model, cluster_method){
   cluster <- hclust(distance_matrix, method = cluster_method)
   
 }
+
+
+Main <- function(){
+  extinct_serch_terms = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b AND 400:1000[SLEN]"
+  
+  extant_search_terms = "Loxodonta africana[ORGN] OR Loxodonta cyclotis OR (Elephas maximus[ORGN] NOT Elephas maximus asurus[ORGN]) AND cytochrome b AND 500:1000[SLEN]"
+  
+  
+}
+
+
+
