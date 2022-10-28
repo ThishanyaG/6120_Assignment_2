@@ -10,10 +10,9 @@ library(tidyverse)
 library(muscle)
 library(DECIPHER)
 library(ape)
-library(randomForest)
-
-#library(stringi)
-#library(RSQLite)
+library(phangorn)
+library(cluster)
+library(vegan)
 
 elephant_search1 <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND ND4[GENE] AND 3000:4000[SLEN]")
 
@@ -74,6 +73,8 @@ df_extinct <- data.frame(Title = names(extinct_cytb_stringSet), Sequence = paste
 # Add another column to the data frame that contains the species name of the data point. 
 df_extinct$Species_Name <- word(df_extinct$Title, 2L, 3L)
 df_extinct <- df_extinct[, c("Title", "Species_Name", "Sequence")]
+df_extinct$status <- "Extinct"
+
 View(df_extinct)
 
 # And repeat for extant species
@@ -86,10 +87,10 @@ df_extant <- data.frame(Title = names(extant_cytb_stringSet), Sequence = paste(e
 # Add another column to the data frame that contains the species name of the data point. 
 df_extant$Species_Name <- word(df_extant$Title, 2L, 3L)
 df_extant <- df_extant[, c("Title", "Species_Name", "Sequence")]
+df_extant$status <- "Extant"
 View(df_extant)
 
 rm(recs_extant, recs_extinct)
-rm(extant_cytb_stringSet, extinct_cytb_stringSet)
 ################################################################################
 # Summarize the data
 summary(df_extinct)
@@ -128,192 +129,120 @@ df_extinct %>%
 df_extant %>%
   count(nchar(Sequence))
 
-################################################################################
-# Alignment
-?muscle
-
-extinct_alignment <- DNAStringSet(muscle::muscle(extinct_cytb_stringSet))
-extant_alignment <- DNAStringSet(muscle::muscle(extant_cytb_stringSet))
+# Alignment: do initial alignments for both data frames, separately for now. 
+extinct_alignment <- DNAStringSet(muscle::muscle(extinct_cytb_stringSet, maxiters = 2))
+extant_alignment <- DNAStringSet(muscle::muscle(extant_cytb_stringSet, maxiters = 2))
 
 BrowseSeqs(extinct_alignment)
 BrowseSeqs(extant_alignment)
 
+rm(extant_alignment, extinct_alignment)
 ################################################################################
-df_extinct$status <- "Extinct"
-df_extant$status <- "Extant"
+# Prepare data for clustering
 
-df_extinct1 <- df_extinct %>%
-  mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
-  mutate(Sequence0 = str_remove(Sequence, "[-N]+$")) %>%
-  mutate(Sequence0 = str_remove(Sequence, "-+")) %>%
-  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence)))
-
-df_extant1 <- df_extant %>%
-  mutate(Sequence0 = str_remove(Sequence, "^[-N]+")) %>%
-  mutate(Sequence0 = str_remove(Sequence, "[-N]+$")) %>%
-  mutate(Sequence0 = str_remove(Sequence, "-+")) %>%
-  filter(str_count(Sequence0, "N") <= (0.05 * str_count(Sequence)))
-
-df_merge1 <- merge.data.frame(df_extant1, df_extinct1, all = T)
-df_merge1$Sequence0 <- DNAStringSet(df_merge1$Sequence0)
-
-df_merge1 <- cbind(df_merge1, as.data.frame(letterFrequency(df_merge1$Sequence0, letters = c("A", "C","G", "T"))))
-
-df_merge1$Aprop <- (df_merge1$A) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
-df_merge1$Tprop <- (df_merge1$T) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
-df_merge1$Gprop <- (df_merge1$G) / (df_merge1$A + df_merge1$T + df_merge1$C + df_merge1$G)
-
-df_merge1$Sequence0 <- as.character(df_merge1$Sequence0)
-
-################################################################################
-
-set.seed(16)
-df_Validation <- df_merge1 %>%
-  group_by(status) %>%
-  sample_n(20)
-
-set.seed(85)
-df_Training <- df_merge1 %>%
-  filter(!Title %in% df_Validation$Title) %>%
-  group_by(status) %>%
-  sample_n(60)
-
-classifier <- randomForest::randomForest(x = df_Training[, 10:12], y = as.factor(df_Training$status), ntree = 50, importance = TRUE)
-
-classifier
-
-predict_Validation <- predict(classifier, df_Validation[, c(4, 10:12)])
-predict_Validation
-
-table(observed = df_Validation$status, predicted = predict_Validation)
-
-################################################################################
-df_extinct$status <- "Extinct"
-df_extant$status <- "Extant"
-
-class(merged$Sequence)
-
+# merge the 2 data frames into 1. remove any leading or trailing N's and gaps from the data, then filter the  data frame to remove all sequences that have a high N counts (more that 1%) or sequences with large size variation. The edited sequences are added to a new column.
 merged <- merge(df_extant, df_extinct, all = T)
 df_merged <- merged %>%
   mutate(Sequence_remove = str_remove_all(Sequence, "^N+|N+$|-")) %>%
   filter(str_count(Sequence_remove, "N") <= (0.01 * str_count(Sequence))) %>%
   filter(str_count(Sequence_remove) >= median(str_count(Sequence_remove)) - 75 & str_count(Sequence_remove) <= median(str_count(Sequence_remove)) + 75)
 
+# Ensure the new data frame is set as a data frame and make the 2 sequence columns into DNA String set objects. The names of the edited sequences are set to the status and accession number to ensure unique identifiers. A new columns is also added that contains this identifier
 df_merged <- as.data.frame(df_merged)
 df_merged$Sequence <- DNAStringSet(df_merged$Sequence)
 df_merged$Sequence_remove <- DNAStringSet(df_merged$Sequence_remove)
 names(df_merged$Sequence_remove) <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
 
-
-merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove))
+# do an initial alignment of the newly merged data
+merged_alignment <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove, maxiters = 2, log = "log.txt"))
 BrowseSeqs(merged_alignment)
 
-################################################################################
-# Distance Matrix: calculate multiple distance matrices using different models
-bin <- as.DNAbin(merged_alignment)
+# do an alignment with a higher gap penalty
+merged_alignment_gap <- DNAStringSet(muscle::muscle(df_merged$Sequence_remove, maxiters = 2, gapopen = -1000))
+BrowseSeqs(merged_alignment_gap)
 
-#Jukes and Canter
-distanceMatrix_JC <- dist.dna(bin, model = "JC69", as.matrix = TRUE, pairwise.deletion = TRUE)
-distanceMatrix_JC = as.dist(distanceMatrix_JC)
-jc_cluster_single <- hclust(distanceMatrix_JC,method="single")
-jc_cluster_complete <- hclust(distanceMatrix_JC,method="complete")
-
-# Kimura's 2-parameter distance
-distanceMatrix_Kim2P <- dist.dna(bin, model = "K80", as.matrix = TRUE, pairwise.deletion = TRUE)
-distanceMatrix_Kim2P = as.dist(distanceMatrix_Kim2P)
-Kim_cluster_single <- hclust(distanceMatrix_Kim2P,method="single")
-Kim_cluster_complete <- hclust(distanceMatrix_Kim2P,method="complete")
-
-distanceMatrix_Tamura <- dist.dna(bin, model = "T92", as.matrix = TRUE, pairwise.deletion = TRUE)
-distanceMatrix_Tamura = as.dist(distanceMatrix_Tamura)
-
-distanceMatrix_pariwise <- dist.dna(x = bin, model = "raw", as.matrix = T, pairwise.deletion = T)
-distance_Matrix_pariwise <- as.dist(distanceMatrix_pariwise)
-pairwise_cluster <- hclust(distance_Matrix_pariwise, method = "single")
-
-
-
-plot(pairwise_cluster)
-# Clustering
-
-
-plot(as.phylo(jc_cluster_single), tip.color = c("red", "green", "blue")[cutree(jc_cluster_single, 3)])
-plot(jc_cluster_complete)
+rm(merged_alignment, merged_alignment_gap)
 
 ################################################################################
-df_merged$marker <- paste(df_merged$status, word(df_merged$Title, 1L), sep = " ")
+# After analyzing the alignments, it is clear that there are a few sequences that vary wildly from the other sequences. Thus, they will be removed and added to a new data frame for further analysis
 df_merged$Sequence <- as.character(df_merged$Sequence)
 df_merged$Sequence_remove <- as.character(df_merged$Sequence_remove)
 
-df_merged_noPredict <- merge(df_extant, df_extinct, all = T)
-df_merged_noPredict$marker <- paste(df_merged_noPredict$status, word(df_merged$Title, 1L), sep = " ")
 df_merged_noPredict <- df_merged %>%
   filter(!Species_Name == "PREDICTED: Elephas", !Species_Name == "PREDICTED: Loxodonta", !marker== "Extinct FJ753551.1")
 
-
-df_merged_noPredict <- as.data.frame(df_merged_noPredict)
-df_merged_noPredict$Sequence <- BStringSet(df_merged_noPredict$Sequence)
-df_merged_noPredict$Sequence_remove <- BStringSet(df_merged_noPredict$Sequence_remove)
-
+# Ensure the new data frame is set as a data frame and make the 2 sequence columns into DNA String set objects. The names of the edited sequences are set to the status and accession number to ensure unique identifiers. A new columns is also added that contains this identifier
 df_merged_noPredict$Sequence <- DNAStringSet(df_merged_noPredict$Sequence)
 df_merged_noPredict$Sequence_remove <- DNAStringSet(df_merged_noPredict$Sequence_remove)
+df_merged_noPredict <- as.data.frame(df_merged_noPredict)
 names(df_merged_noPredict$Sequence_remove) <- paste(df_merged_noPredict$status, word(df_merged_noPredict$Title, 1L), sep = " ")
 
+# The merged data is aligned
 noPredict_alignment <- DNAStringSet(muscle::muscle(df_merged_noPredict$Sequence_remove))
+BrowseSeqs(noPredict_alignment)
 
+################################################################################
+#Distance Matrix:
+
+# create a DNA bin object from the previous alignment
 bin_noPredict <- as.DNAbin(noPredict_alignment)
 
+# Calculate the distance matrix with pairwise deletion
 noPredict_distanceMatrix_pairwise <- dist.dna(x = bin_noPredict, model = "raw", as.matrix = T, pairwise.deletion = T)
-noPredict_distance_Matrix_pariwise <- as.dist(noPredict_distanceMatrix_pairwise)
-noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pariwise, method = "single")
+noPredict_distance_Matrix_pairwise <- as.dist(noPredict_distanceMatrix_pairwise)
 
+################################################################################
+# Clustering: 
 
-plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue")[cutree(noPredict_pairwise_cluster, 2)])
+# Complete clustering method:
+noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pairwise, method = "complete")
 
-plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)])
+# Plot the results of the clustering
+plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)], )
 
+plot(as.phylo(noPredict_pairwise_cluster), show.tip.label = FALSE)
 
+# Analyse the tips of the trees based on how they have been clustered. We cut the tree based off of the outermost branches and summerise
 cut <- cutree(noPredict_pairwise_cluster, 2)
-View(cut)
-
 df_cut <- as.data.frame(cut)
-df_cut %>%
-  count(cut) 
-
 df_cut$status <- word(row.names(df_cut), 1L, sep = " ")
-
 df_cut %>% 
   group_by(cut) %>%
   count(status)
 
 cut3 <- cutree(noPredict_pairwise_cluster, 3)
-
 df_cut3 <- as.data.frame(cut3)
-
 df_cut3$status <- word(row.names(df_cut3), 1L, sep = " ")
-
-df_cut %>% 
-  group_by(cut) %>%
+df_cut3 %>% 
+  group_by(cut3) %>%
   count(status)
 
+cut4 <- cutree(noPredict_pairwise_cluster, 4)
+df_cut4 <- as.data.frame(cut4)
+df_cut4$status <- word(row.names(df_cut4), 1L, sep = " ")
+df_cut4 %>% 
+  group_by(cut4) %>%
+  count(status)
 
 ################################################################################
+#K-Means:
+# Use a function from Nallathambi, J. (2018) from https://medium.com/codesmart/r-series-k-means-clustering-silhouette-794774b46586 to Calculate multiple silhouette scores and plot the scores to find the ideal number of clusters to perform K-means clustering. According to the plot, k=3 is ideal
+silhouette_score <- function(k){
+  km <- kmeans(noPredict_distanceMatrix_pairwise, centers = k)
+  ss <- silhouette(km$cluster, dist(noPredict_distanceMatrix_pairwise))
+  mean(ss[,3])
+}
 
-cl <- stats::kmeans(noPredict_distance_Matrix_pariwise, 2)
-cl3 <- stats::kmeans(noPredict_distance_Matrix_pariwise, 3)
+k <- 2:10
+sil_func <- lapply(k, silhouette_score)
+plot(k, type='b', sil_func)
 
-set.seed(96)
+# Perform the K-means with k=3, calculate the silhouette score and plot the silhouette index
+cl3 <- kmeans(noPredict_distance_Matrix_pairwise, 3)
+sil_clus3 <- silhouette(cl3$cluster, dist(noPredict_distance_Matrix_pairwise))
 
-plot(noPredict_distance_Matrix_pariwise, col = cl$cluster)
-plot(noPredict_distance_Matrix_pariwise, col = cl3$cluster)
-
-plot(noPredict_distance_Matrix_pariwise)
-plot(noPredict_distance_Matrix_pariwise)
-
-
-
-
-
-
+grDevices::windows()
+plot(sil_clus3)
+plot(noPredict_distance_Matrix_pairwise, col = cl3$cluster)
 

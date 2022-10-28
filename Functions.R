@@ -27,7 +27,7 @@ Fasta_StringSet_DataFrame <- function(search_results, db = "nucleotide", file_na
 
   recs <- entrez_fetch(db = db, web_history = search_results$web_history, rettype = "fasta", retmax = search_results$count)
   write(recs, file_name)
-  string_set <- readDNAStringSet(file_name)
+  string_set <- lapply(file_name, readDNAStringSet)
   
   # Make data frames of the string sets
   df <- data.frame(Title = names(string_set), Sequence = paste(string_set))
@@ -36,7 +36,7 @@ Fasta_StringSet_DataFrame <- function(search_results, db = "nucleotide", file_na
   df$Species_Name <- word(df$Title, 2L, 3L)
   df <- df[, c("Title", "Species_Name", "Sequence")]
   
-  return(string_set, df)
+  return(c(string_set, df))
 }
 
 ClassifierPrep <- function(df){
@@ -104,13 +104,14 @@ DistanceMatrix1 <- function(alignment, model, cluster_method){
 }
 
 
-Main <- function(){
-  extinct_serch_terms = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b AND 400:1000[SLEN]"
-  
-  extant_search_terms = "Loxodonta africana[ORGN] OR Loxodonta cyclotis OR (Elephas maximus[ORGN] NOT Elephas maximus asurus[ORGN]) AND cytochrome b AND 500:1000[SLEN]"
-  
-  
-}
 
-
-
+extinct_search_terms = "Elephas antiquus[ORGN] OR Mammut[ORGN] OR Mammuthus[ORGN] OR Elephas cypriotes[ORGN] OR Elephas maximus asurus[ORGN] AND cytochrome b AND 400:1000[SLEN]"
+extinct_elephants <- DataAcquisition(extinct_search_terms)
+c(extinct_string_set, df_extinct) <- Fasta_StringSet_DataFrame(extinct_elephants, file_name = "extinct_elephant_cytb.fasta")
+  
+  
+  
+extant_search_terms = "Loxodonta africana[ORGN] OR Loxodonta cyclotis OR (Elephas maximus[ORGN] NOT Elephas maximus asurus[ORGN]) AND cytochrome b AND 500:1000[SLEN]"
+extant_elephants <- DataAcquisition(extant_search_terms)
+  
+?apply
