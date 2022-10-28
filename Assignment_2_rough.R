@@ -14,9 +14,6 @@ library(phangorn)
 library(cluster)
 library(vegan)
 
-elephant_search1 <- entrez_search(db = "nucleotide", term = "Elephantidae[ORGN] AND ND4[GENE] AND 3000:4000[SLEN]")
-
-
 
 ################################################################################
 # Data acquisition: get gene data using entrez search
@@ -116,11 +113,12 @@ summary(nchar(df_extinct$Sequence))
 summary(nchar(df_extant$Sequence))
 
 # create a histogram of the sequence lengths in each data frame
-hist(nchar(df_extinct$Sequence), xlab = "Sequence Length", ylab = "
-     Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extinct Species")
+par(mfrow=c(2,1))
 
-hist(nchar(df_extant$Sequence), xlab = "Sequence Length", ylab = "
-     Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extant Species")
+extinct_length <- hist(nchar(df_extinct$Sequence), xlab = "Sequence Length", ylab = "Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extinct Species")
+
+extant_length <- hist(nchar(df_extant$Sequence), xlab = "Sequence Length", ylab = " Frequency", main = "Frequency Histogram of CytB Sequence Lengths in Extant Species")
+
 
 # Looking at the length of all the sequences in each set
 df_extinct %>%
@@ -199,10 +197,12 @@ noPredict_distance_Matrix_pairwise <- as.dist(noPredict_distanceMatrix_pairwise)
 noPredict_pairwise_cluster <- hclust(noPredict_distance_Matrix_pairwise, method = "complete")
 
 # Plot the results of the clustering
-plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)], )
+plot(as.phylo(noPredict_pairwise_cluster), tip.color = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)])
 
-plot(as.phylo(noPredict_pairwise_cluster), show.tip.label = FALSE)
+plot(as.phylo(noPredict_pairwise_cluster), show.tip.label = FALSE, main = "Complete Clustering Tree", tip)
 
+plot(as.dendrogram(noPredict_pairwise_cluster), nodePar = list(col = c("red", "blue", "green")[cutree(noPredict_pairwise_cluster, 3)]), leaflab = "none")
+??nodePar
 # Analyse the tips of the trees based on how they have been clustered. We cut the tree based off of the outermost branches and summerise
 cut <- cutree(noPredict_pairwise_cluster, 2)
 df_cut <- as.data.frame(cut)
@@ -236,13 +236,13 @@ silhouette_score <- function(k){
 
 k <- 2:10
 sil_func <- lapply(k, silhouette_score)
-plot(k, type='b', sil_func)
+plot(k, type='b', sil_func, main ="Silhouette Scores at Mulitple K-values",xlab = "Value of K", ylab = "Silhouette Score")
 
 # Perform the K-means with k=3, calculate the silhouette score and plot the silhouette index
 cl3 <- kmeans(noPredict_distance_Matrix_pairwise, 3)
 sil_clus3 <- silhouette(cl3$cluster, dist(noPredict_distance_Matrix_pairwise))
 
 grDevices::windows()
-plot(sil_clus3)
+plot(sil_clus3, main = "3 Cluster Silhouette Plot")
 plot(noPredict_distance_Matrix_pairwise, col = cl3$cluster)
 
